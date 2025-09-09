@@ -67,20 +67,14 @@ class UIComponents:
     
     def render_main_interface(self):
         """
-        渲染搜索界面
+        渲染搜索界面（已废弃，保留兼容性）
         
         Returns:
             tuple: (搜索查询, 搜索按钮状态)
         """
-        # 搜索界面布局
-        search_query = st.text_input(
-            "请输入搜索关键词", 
-            value="AI", 
-            help="支持关键词、短语搜索，系统会自动进行语义理解"
-        )
-        search_btn = st.button("搜索", type="primary")
-        
-        return search_query, search_btn
+        # 这个方法已经被主程序中的新布局替代
+        # 保留此方法仅为向后兼容
+        return "", False
     
     def update_search_status(self, search_time_placeholder, result_count_placeholder, 
                            duration_ms, result_count):

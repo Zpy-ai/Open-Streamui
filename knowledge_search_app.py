@@ -30,7 +30,7 @@ class KnowledgeSearchApp:
     def _init_session_state(self):
         """初始化会话状态"""
         if 'current_page' not in st.session_state:
-            st.session_state.current_page = "知识库搜索"
+            st.session_state.current_page = "AI问答"
         if 'chat_history' not in st.session_state:
             st.session_state.chat_history = []
         if 'use_web_search' not in st.session_state:
@@ -48,8 +48,8 @@ class KnowledgeSearchApp:
         """运行应用主程序"""
         # 设置页面配置
         st.set_page_config(
-            page_title="知识库搜索系统",
-            page_icon="🔍",
+            page_title="Open-Streamui",
+            page_icon="",
             layout="wide",
             initial_sidebar_state="expanded"  # 展开侧边栏，与知识库搜索保持一致
         )
@@ -65,9 +65,30 @@ class KnowledgeSearchApp:
     
     def _render_navigation(self):
         """渲染页面导航"""
-        # 居中显示标题
+        # 使用容器和CSS实现右上角标题
         st.markdown(
-            "<h1 style='text-align: center; color: #1f77b4; margin-bottom: 2rem;'>🔍 知识库搜索系统</h1>", 
+            """
+            <style>
+            .title-container {
+                display: flex;
+                justify-content: flex-end;
+                margin-top: -50px;
+                margin-bottom: 10px;
+                position: relative;
+                z-index: 100;
+            }
+            .app-title {
+                color: #1f77b4;
+                font-size: 24px;
+                font-weight: bold;
+                margin: 0;
+                padding: 5px 10px;
+            }
+            </style>
+            <div class="title-container">
+                <h2 class="app-title">Open-Streamui</h2>
+            </div>
+            """, 
             unsafe_allow_html=True
         )
     
@@ -83,7 +104,7 @@ class KnowledgeSearchApp:
         with st.sidebar:
             # 页面模式选择
             st.markdown("### 🔍 功能选择")
-            page_options = ["知识库搜索", "AI问答"]
+            page_options = ["AI问答", "知识库搜索"]
             selected_page = st.radio(
                 "选择功能",
                 page_options,
@@ -103,15 +124,46 @@ class KnowledgeSearchApp:
             self.ui_components.render_sidebar()
         )
         
-        # 渲染主界面
-        search_query, search_btn = self.ui_components.render_main_interface()
+        # 创建搜索结果容器
+        results_container = st.container()
         
-        # 处理搜索逻辑
-        if search_btn:
-            self._handle_search(
-                search_query, knowledge_base, top_k, semantic_ratio,
-                search_time_placeholder, result_count_placeholder
+        # 在搜索结果容器中显示欢迎信息
+        with results_container:
+            st.markdown("""
+            <div style='text-align: center; padding: 3rem; color: #666; background-color: #f8f9fa; 
+                        border-radius: 10px; margin: 2rem 0;'>
+                <h3>👋 欢迎使用知识库搜索</h3>
+                <p>请在下方输入搜索关键词，我会为您在知识库中查找相关内容</p>
+                <p>💡 您可以在侧边栏调整搜索参数来获得更精准的结果</p>
+                <p>🔍 支持关键词搜索和语义搜索，系统会自动进行智能匹配</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 将搜索输入框放在最下面
+        st.markdown("---")
+        st.markdown("### 搜索")
+        
+        # 搜索输入框和按钮在同一行
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            search_query = st.text_input(
+                "请输入搜索关键词", 
+                value="AI", 
+                help="支持关键词、短语搜索，系统会自动进行语义理解",
+                label_visibility="collapsed"
             )
+        with col2:
+            search_btn = st.button("搜索", type="primary", use_container_width=True)
+        
+        # 处理搜索逻辑并在结果容器中显示
+        if search_btn:
+            # 清空容器并显示搜索结果
+            results_container.empty()
+            with results_container:
+                self._handle_search(
+                    search_query, knowledge_base, top_k, semantic_ratio,
+                    search_time_placeholder, result_count_placeholder
+                )
     
     def _render_chat_page(self):
         """渲染AI问答页面"""
@@ -128,8 +180,10 @@ class KnowledgeSearchApp:
         current_session = st.session_state.current_chat_session
         current_history = st.session_state.chat_sessions.get(current_session, [])
         
-        # 显示对话历史
+        # 创建对话历史容器
         chat_container = st.container()
+        
+        # 显示对话历史
         with chat_container:
             # 如果没有对话历史，显示欢迎信息
             if not current_history:
@@ -203,7 +257,8 @@ class KnowledgeSearchApp:
                             elif search_info.get("search_failed"):
                                 st.caption("⚠️ 网络搜索失败，使用AI基础知识回答")
         
-        # 用户输入
+        # 将用户输入框放在最下面
+        st.markdown("---")
         user_input = st.chat_input("请输入您的问题...")
         
         if user_input:
@@ -214,25 +269,26 @@ class KnowledgeSearchApp:
                 "timestamp": datetime.now()
             })
             
-            # 显示用户消息
-            with st.chat_message("user"):
-                st.write(user_input)
-            
-            # 生成AI回答
-            with st.chat_message("assistant"):
-                with st.spinner("AI正在思考中..."):
-                    response_data = self._generate_ai_response(user_input, st.session_state.use_web_search)
+            # 在对话容器中显示用户消息
+            with chat_container:
+                with st.chat_message("user"):
+                    st.write(user_input)
                 
-                # 显示AI回答
-                st.write(response_data["response"])
-                
-                # 显示搜索信息
-                if response_data.get("search_info"):
-                    search_info = response_data["search_info"]
-                    if search_info.get("used_search"):
-                        st.caption(f"🌐 已使用网络搜索: {search_info.get('query', '')}")
-                    elif search_info.get("search_failed"):
-                        st.caption("⚠️ 网络搜索失败，使用AI基础知识回答")
+                # 生成AI回答
+                with st.chat_message("assistant"):
+                    with st.spinner("AI正在思考中..."):
+                        response_data = self._generate_ai_response(user_input, st.session_state.use_web_search)
+                    
+                    # 显示AI回答
+                    st.write(response_data["response"])
+                    
+                    # 显示搜索信息
+                    if response_data.get("search_info"):
+                        search_info = response_data["search_info"]
+                        if search_info.get("used_search"):
+                            st.caption(f"🌐 已使用网络搜索: {search_info.get('query', '')}")
+                        elif search_info.get("search_failed"):
+                            st.caption("⚠️ 网络搜索失败，使用AI基础知识回答")
             
             # 添加AI回答到当前会话
             st.session_state.chat_sessions[current_session].append({
@@ -250,7 +306,7 @@ class KnowledgeSearchApp:
         with st.sidebar:
             # 页面模式选择
             st.markdown("### 🔍 功能选择")
-            page_options = ["知识库搜索", "AI问答"]
+            page_options = ["AI问答", "知识库搜索"]
             selected_page = st.radio(
                 "选择功能",
                 page_options,
