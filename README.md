@@ -1,7 +1,7 @@
 # 知识库搜索系统
 
 这是一个基于 Streamlit 的模块化知识库搜索系统，支持混合搜索（关键词+语义搜索）、AI摘要生成和智能问答功能。
-
+https://github.com/Zpy-ai/Open-Streamui/blob/main/images/ai-chat.png
 ## 功能特性
 
 - 🔍 **混合搜索**：结合关键词搜索和语义搜索
