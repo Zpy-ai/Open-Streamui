@@ -18,17 +18,23 @@ class AIService:
             config_manager: 配置管理器实例
         """
         self.config_manager = config_manager
-        self.openai_config = config_manager.get_openai_config()
+        self.config = config_manager.get_config()
         
-        # 初始化 OpenAI 客户端（通义千问）
+        # 获取默认服务商
+        self.default_provider = self.config.get("default_provider", "openai")
+        
+        # 获取当前服务商配置
+        self.current_provider_config = self.config.get(self.default_provider, {})
+        
+        # 初始化 OpenAI 客户端
         self.client = OpenAI(
-            api_key=self.openai_config["api_key"],
-            base_url=self.openai_config["base_url"],
+            base_url=self.current_provider_config.get("base_url", "https://api.openai.com/v1"),
+            api_key=self.current_provider_config.get("api_key", ""),
         )
     
     def generate_summary(self, text, max_tokens=128):
         """
-        使用通义千问生成文本摘要
+        使用AI服务生成文本摘要
         
         Args:
             text (str): 需要生成摘要的文本
@@ -41,7 +47,7 @@ class AIService:
         
         try:
             response = self.client.chat.completions.create(
-                model=self.openai_config["model"],
+                model=self.current_provider_config.get("model", "gpt-3.5-turbo"),
                 messages=[
                     {
                         "role": "system", 
@@ -59,7 +65,7 @@ class AIService:
     
     def extract_keywords(self, text, max_tokens=128):
         """
-        使用通义千问生成文本关键词
+        使用AI服务生成文本关键词
         
         Args:
             text (str): 需要提取关键词的文本
@@ -72,7 +78,7 @@ class AIService:
         
         try:
             response = self.client.chat.completions.create(
-                model=self.openai_config["model"],
+                model=self.current_provider_config.get("model", "gpt-3.5-turbo"),
                 messages=[
                     {
                         "role": "system", 
@@ -102,7 +108,7 @@ class AIService:
         """
         try:
             response = self.client.chat.completions.create(
-                model=self.openai_config["model"],
+                model=self.current_provider_config.get("model", "gpt-3.5-turbo"),
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens

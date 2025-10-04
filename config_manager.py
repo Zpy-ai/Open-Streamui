@@ -76,3 +76,19 @@ class ConfigManager:
         if key is None:
             return self.config
         return self.config.get(key, {})
+    
+    def save_config(self, new_config):
+        """
+        保存配置到文件
+        
+        Args:
+            new_config (dict): 新的配置字典
+        """
+        try:
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(new_config, f, ensure_ascii=False, indent=2)
+            self.config = new_config
+            return True
+        except Exception as e:
+            st.error(f"保存配置文件失败：{str(e)}")
+            return False

@@ -12,10 +12,11 @@
 - 🎛️ **侧边栏统一控制**：页面切换、功能设置全部集中在侧边栏
 - 🎨 **简洁界面**：专注核心功能，移除不必要的统计信息
 - 📱 **响应式设计**：自适应不同屏幕尺寸，优化显示效果
-- 📝 **AI摘要**：使用通义千问自动生成文档摘要
+- 📝 **AI摘要**：使用AI服务自动生成文档摘要
 - 🔑 **关键词提取**：自动提取文档关键词
 - ⚡ **实时搜索**：快速响应的搜索体验
 - 🏗️ **模块化架构**：清晰的代码结构，易于维护和扩展
+- 🤖 **多AI服务商支持**：支持OpenAI、通义千问、DeepSeek、Claude、Gemini、Kimi、腾讯混元、豆包等主流AI服务商
 
 ## 项目结构
 
@@ -80,8 +81,43 @@ cp config.template.json config.json
 ### 3. 配置文件说明
 编辑 `config.json` 文件，填入你的实际配置信息：
 
-- **openai**: 通义千问API配置
+- **openai**: OpenAI系列模型配置
+  - `api_key`: 你的API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **qwen**: 通义千问API配置
   - `api_key`: 你的通义千问API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **deepseek**: DeepSeek模型配置
+  - `api_key`: 你的DeepSeek API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **claude**: Claude模型配置
+  - `api_key`: 你的Claude API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **gemini**: Google Gemini模型配置
+  - `api_key`: 你的Gemini API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **kimi**: 月之暗面Kimi模型配置
+  - `api_key`: 你的Kimi API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **hunyuan**: 腾讯混元模型配置
+  - `api_key`: 你的腾讯混元API密钥
+  - `base_url`: API基础URL
+  - `model`: 使用的模型名称
+
+- **doubao**: 豆包模型配置
+  - `api_key`: 你的豆包API密钥
   - `base_url`: API基础URL
   - `model`: 使用的模型名称
 
@@ -152,9 +188,21 @@ streamlit run ai.py
 3. 在相应服务中使用新配置
 
 ### 扩展AI服务
-1. 在AIService中添加新的AI功能
-2. 配置相应的API密钥和参数
-3. 在UI中添加相应的控制选项
+系统已内置支持多种AI服务商，包括：
+- OpenAI系列模型
+- 通义千问
+- DeepSeek
+- Claude
+- Google Gemini
+- 月之暗面Kimi
+- 腾讯混元
+- 豆包
+
+如需添加新的AI服务商：
+1. 在配置文件中添加相应的服务商配置
+2. 确保配置包含 `api_key`、`base_url` 和 `model` 字段
+3. 在 `ui_components.py` 和 `knowledge_search_app.py` 的 `ai_provider_keys` 列表中添加新的服务商键名
+4. 系统会自动识别并显示在AI模型选择器中
 
 ## 注意事项
 

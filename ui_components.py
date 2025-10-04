@@ -5,20 +5,23 @@ UI组件模块
 
 import streamlit as st
 import time
+from openai import OpenAI
 
 
 class UIComponents:
     """UI组件类"""
     
-    def __init__(self, config_manager):
+    def __init__(self, config_manager, ai_service=None):
         """
         初始化UI组件
         
         Args:
             config_manager: 配置管理器实例
+            ai_service: AI服务实例（可选）
         """
         self.config_manager = config_manager
         self.search_config = config_manager.get_search_config()
+        self.ai_service = ai_service
     
     def render_sidebar(self):
         """
@@ -29,6 +32,48 @@ class UIComponents:
         """
         with st.sidebar:
             st.header("搜索设置")
+            
+            # AI模型选择
+            config = self.config_manager.get_config()
+            available_providers = []
+            
+            # 只显示真正的AI服务商配置（排除web_search、embedding、meilisearch等）
+            ai_provider_keys = ["openai", "qwen", "deepseek", "claude", "gemini", "kimi", "hunyuan", "doubao"]  # 支持的AI服务商列表
+            for provider_key, provider_config in config.items():
+                if (isinstance(provider_config, dict) and 
+                    "api_key" in provider_config and 
+                    provider_key in ai_provider_keys):
+                    available_providers.append(provider_key)
+            
+            if available_providers:
+                # 默认使用配置中的默认服务商，如果没有则使用第一个
+                default_provider = config.get("default_provider", available_providers[0])
+                
+                selected_provider = st.selectbox(
+                    "🤖 AI模型",
+                    options=available_providers,
+                    index=available_providers.index(default_provider) if default_provider in available_providers else 0,
+                    help="选择要使用的AI模型服务商"
+                )
+                
+                # 显示当前选择的模型信息
+                provider_config = config.get(selected_provider, {})
+                model_name = provider_config.get("model", "未知模型")
+                st.info(f"当前使用: {selected_provider} - {model_name}")
+                
+                # 更新AI服务配置（如果提供了AI服务实例）
+                if self.ai_service and selected_provider != self.ai_service.default_provider:
+                    self.ai_service.default_provider = selected_provider
+                    self.ai_service.current_provider_config = config.get(selected_provider, {})
+                    self.ai_service.client = OpenAI(
+                        base_url=self.ai_service.current_provider_config.get("base_url", "https://api.openai.com/v1"),
+                        api_key=self.ai_service.current_provider_config.get("api_key", ""),
+                    )
+                    st.success(f"✅ 已切换到 {selected_provider}")
+            else:
+                st.warning("⚠️ 未配置任何AI服务商，请前往设置页面进行配置")
+            
+            st.markdown("---")
             
             # 知识库选择（需与 Meilisearch 中的索引名一致）
             knowledge_base = st.selectbox(

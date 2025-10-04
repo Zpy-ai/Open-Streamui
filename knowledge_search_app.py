@@ -5,6 +5,7 @@
 
 import streamlit as st
 from datetime import datetime
+from openai import OpenAI
 from config_manager import ConfigManager
 from search_service import SearchService
 from ai_service import AIService
@@ -17,11 +18,11 @@ class KnowledgeSearchApp:
     
     def __init__(self):
         """初始化应用"""
-        # 初始化各个服务模块
+        # 初始化各模块
         self.config_manager = ConfigManager()
         self.search_service = SearchService(self.config_manager)
         self.ai_service = AIService(self.config_manager)
-        self.ui_components = UIComponents(self.config_manager)
+        self.ui_components = UIComponents(self.config_manager, self.ai_service)
         self.web_search_service = WebSearchService(self.config_manager)
         
         # 初始化会话状态
@@ -62,6 +63,8 @@ class KnowledgeSearchApp:
             self._render_search_page()
         elif st.session_state.current_page == "AI问答":
             self._render_chat_page()
+        elif st.session_state.current_page == "设置":
+            self._render_settings_page()
     
     def _render_navigation(self):
         """渲染页面导航"""
@@ -104,7 +107,7 @@ class KnowledgeSearchApp:
         with st.sidebar:
             # 页面模式选择
             st.markdown("### 🔍 功能选择")
-            page_options = ["AI问答", "知识库搜索"]
+            page_options = ["AI问答", "知识库搜索", "设置"]
             selected_page = st.radio(
                 "选择功能",
                 page_options,
@@ -306,7 +309,7 @@ class KnowledgeSearchApp:
         with st.sidebar:
             # 页面模式选择
             st.markdown("### 🔍 功能选择")
-            page_options = ["AI问答", "知识库搜索"]
+            page_options = ["AI问答", "知识库搜索", "设置"]
             selected_page = st.radio(
                 "选择功能",
                 page_options,
@@ -379,6 +382,46 @@ class KnowledgeSearchApp:
             
             # AI设置
             st.markdown("### ⚙️ AI设置")
+            
+            # 模型选择
+            config = self.config_manager.get_config()
+            available_providers = []
+            
+            # 只显示真正的AI服务商配置（排除web_search、embedding、meilisearch等）
+            ai_provider_keys = ["openai", "qwen", "deepseek", "claude", "gemini", "kimi", "hunyuan", "doubao"]  # 支持的AI服务商列表
+            for provider_key, provider_config in config.items():
+                if (isinstance(provider_config, dict) and 
+                    "api_key" in provider_config and 
+                    provider_key in ai_provider_keys):
+                    available_providers.append(provider_key)
+            
+            if available_providers:
+                # 默认使用配置中的默认服务商，如果没有则使用第一个
+                default_provider = config.get("default_provider", available_providers[0])
+                
+                selected_provider = st.selectbox(
+                    "🤖 AI模型",
+                    options=available_providers,
+                    index=available_providers.index(default_provider) if default_provider in available_providers else 0,
+                    help="选择要使用的AI模型服务商"
+                )
+                
+                # 显示当前选择的模型信息
+                provider_config = config.get(selected_provider, {})
+                model_name = provider_config.get("model", "未知模型")
+                st.info(f"当前使用: {selected_provider} - {model_name}")
+                
+                # 更新AI服务配置
+                if hasattr(self, 'ai_service') and selected_provider != self.ai_service.default_provider:
+                    self.ai_service.default_provider = selected_provider
+                    self.ai_service.current_provider_config = config.get(selected_provider, {})
+                    self.ai_service.client = OpenAI(
+                        base_url=self.ai_service.current_provider_config.get("base_url", "https://api.openai.com/v1"),
+                        api_key=self.ai_service.current_provider_config.get("api_key", ""),
+                    )
+                    st.success(f"✅ 已切换到 {selected_provider}")
+            else:
+                st.warning("⚠️ 未配置任何AI服务商，请前往设置页面进行配置")
             
             # 联网搜索开关
             use_web_search = st.checkbox(
@@ -508,7 +551,7 @@ class KnowledgeSearchApp:
             
             # 调用AI服务生成回答
             response = self.ai_service.client.chat.completions.create(
-                model=self.ai_service.openai_config["model"],
+                model=self.ai_service.current_provider_config.get("model", "gpt-3.5-turbo"),
                 messages=messages,
                 temperature=0.7,
                 max_tokens=1500
@@ -521,13 +564,213 @@ class KnowledgeSearchApp:
                 "search_info": search_info,
                 "success": True
             }
-            
+        
         except Exception as e:
             return {
                 "response": f"抱歉，生成回答时发生错误: {str(e)}",
                 "search_info": search_info,
                 "success": False
             }
+
+    def _render_settings_page(self):
+        """渲染设置页面"""
+        # 添加页面标题
+        st.markdown(
+            "<h2 style='text-align: center; color: #2e8b57; margin-bottom: 1.5rem;'>⚙️ 系统设置</h2>", 
+            unsafe_allow_html=True
+        )
+        
+        # 在侧边栏添加页面选择
+        with st.sidebar:
+            # 页面模式选择
+            st.markdown("### 🔍 功能选择")
+            page_options = ["AI问答", "知识库搜索", "设置"]
+            selected_page = st.radio(
+                "选择功能",
+                page_options,
+                index=page_options.index(st.session_state.current_page),
+                key="settings_sidebar_page_selector"
+            )
+            
+            # 更新当前页面状态
+            if selected_page != st.session_state.current_page:
+                st.session_state.current_page = selected_page
+                st.rerun()
+            
+            st.divider()
+        
+        # 设置页面内容
+        st.markdown("### 🔧 AI服务商配置")
+        
+        # 获取当前配置
+        config = self.config_manager.config
+        
+        # 创建表单用于配置AI服务商
+        with st.form("ai_provider_config"):
+            st.markdown("#### OpenAI配置")
+            
+            # OpenAI配置
+            openai_base_url = st.text_input(
+                "OpenAI Base URL",
+                value=config.get("openai", {}).get("base_url", ""),
+                help="OpenAI API的基础URL，留空使用默认值"
+            )
+            
+            openai_api_key = st.text_input(
+                "OpenAI API Key",
+                value=config.get("openai", {}).get("api_key", ""),
+                type="password",
+                help="OpenAI API密钥"
+            )
+            
+            openai_model = st.text_input(
+                "OpenAI模型",
+                value=config.get("openai", {}).get("model", "gpt-3.5-turbo"),
+                help="使用的OpenAI模型名称"
+            )
+            
+            st.markdown("---")
+            st.markdown("#### 其他AI服务商配置")
+            
+            # 添加新服务商配置
+            st.markdown("##### 添加新服务商")
+            
+            new_provider_name = st.text_input(
+                "服务商名称",
+                placeholder="例如：DeepSeek、Claude等",
+                help="新AI服务商的名称"
+            )
+            
+            new_provider_base_url = st.text_input(
+                "Base URL",
+                placeholder="例如：https://api.deepseek.com/v1",
+                help="新服务商的API基础URL"
+            )
+            
+            new_provider_api_key = st.text_input(
+                "API Key",
+                placeholder="输入API密钥",
+                type="password",
+                help="新服务商的API密钥"
+            )
+            
+            new_provider_model = st.text_input(
+                "模型名称",
+                placeholder="例如：deepseek-chat",
+                help="新服务商的模型名称"
+            )
+            
+            # 提交按钮
+            submit_button = st.form_submit_button("💾 保存配置")
+            
+            if submit_button:
+                # 更新配置
+                updated_config = config.copy()
+                
+                # 更新OpenAI配置
+                if "openai" not in updated_config:
+                    updated_config["openai"] = {}
+                
+                updated_config["openai"]["base_url"] = openai_base_url
+                updated_config["openai"]["api_key"] = openai_api_key
+                updated_config["openai"]["model"] = openai_model
+                
+                # 添加新服务商配置
+                if new_provider_name and new_provider_base_url and new_provider_api_key and new_provider_model:
+                    provider_key = new_provider_name.lower().replace(" ", "_")
+                    if provider_key not in updated_config:
+                        updated_config[provider_key] = {}
+                    
+                    updated_config[provider_key]["base_url"] = new_provider_base_url
+                    updated_config[provider_key]["api_key"] = new_provider_api_key
+                    updated_config[provider_key]["model"] = new_provider_model
+                    
+                    st.success(f"✅ 已添加 {new_provider_name} 服务商配置")
+                
+                # 保存配置
+                try:
+                    self.config_manager.save_config(updated_config)
+                    st.success("✅ 配置保存成功！")
+                    
+                    # 重新初始化AI服务以应用新配置
+                    self.ai_service = AIService(self.config_manager)
+                    st.info("🔄 AI服务已重新初始化，新配置已生效")
+                    
+                except Exception as e:
+                    st.error(f"❌ 保存配置时发生错误: {str(e)}")
+        
+        # 显示当前已配置的服务商
+        st.markdown("### 📋 已配置的服务商")
+        
+        provider_count = 0
+        for provider_key, provider_config in config.items():
+            if isinstance(provider_config, dict) and "api_key" in provider_config:
+                provider_count += 1
+                with st.expander(f"🔧 {provider_key.upper()} 配置", expanded=False):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.text_input(
+                            f"{provider_key} Base URL",
+                            value=provider_config.get("base_url", ""),
+                            key=f"view_{provider_key}_base_url",
+                            disabled=True
+                        )
+                        st.text_input(
+                            f"{provider_key} 模型",
+                            value=provider_config.get("model", ""),
+                            key=f"view_{provider_key}_model",
+                            disabled=True
+                        )
+                    
+                    with col2:
+                        st.text_input(
+                            f"{provider_key} API Key",
+                            value="*" * 20 if provider_config.get("api_key") else "",
+                            key=f"view_{provider_key}_api_key",
+                            disabled=True
+                        )
+                        
+                        # 删除按钮
+                        if provider_key != "openai":  # 保护OpenAI配置不被删除
+                            if st.button(f"🗑️ 删除 {provider_key}", key=f"delete_{provider_key}"):
+                                updated_config = config.copy()
+                                del updated_config[provider_key]
+                                try:
+                                    self.config_manager.save_config(updated_config)
+                                    st.success(f"✅ 已删除 {provider_key} 配置")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ 删除配置时发生错误: {str(e)}")
+        
+        if provider_count == 0:
+            st.info("ℹ️ 当前没有配置任何AI服务商")
+        
+        # 配置使用说明
+        st.markdown("---")
+        st.markdown("### 📖 使用说明")
+        
+        st.markdown("""
+        **配置说明：**
+        
+        1. **OpenAI配置** - 系统默认使用的AI服务商
+        2. **添加新服务商** - 支持配置其他兼容OpenAI API的AI服务商
+        3. **保存配置** - 点击保存按钮后配置将立即生效
+        
+        **支持的AI服务商：**
+        - OpenAI (默认)
+        - DeepSeek
+        - Claude (需要兼容OpenAI API)
+        - 智谱AI
+        - 百度文心一言
+        - 阿里通义千问
+        - 其他兼容OpenAI API的服务
+        
+        **注意事项：**
+        - API密钥将安全保存到本地配置文件
+        - 修改配置后需要重新初始化AI服务
+        - 确保Base URL格式正确（如：https://api.deepseek.com/v1）
+        """)
 
 
 def main():
