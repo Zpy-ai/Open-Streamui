@@ -22,10 +22,12 @@ class WebSearchService:
         self.config_manager = config_manager
         self.logger = logging.getLogger(__name__)
         
-        # 搜索API配置
-        self.search_url = "http://10.8.130.31:6008/api/websearch"
-        self.api_key = "sk-proj-mimouse"
-        self.default_tool = "quark_search"
+        # 从配置文件中读取搜索API配置
+        web_search_config = self.config_manager.get_config().get("web_search", {})
+        self.search_url = web_search_config.get("url")
+        self.api_key = web_search_config.get("api_key")
+        self.default_tool = web_search_config.get("default_tool")
+        self.timeout = web_search_config.get("timeout")
     
     def search_web(self, query: str, tool: str = None) -> Dict[str, Any]:
         """
@@ -59,7 +61,7 @@ class WebSearchService:
                 self.search_url,
                 headers=headers,
                 json=payload,
-                timeout=30
+                timeout=self.timeout
             )
             
             # 检查响应状态
