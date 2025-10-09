@@ -63,6 +63,51 @@
    - 整合所有模块，协调应用流程
    - 提供知识库搜索和AI问答两个主要功能页面
 
+## 快速开始
+
+### 方式一：直接运行
+
+1. 克隆项目到本地
+2. 安装依赖：`pip install -r requirements.txt`
+3. 配置 `config.json` 文件
+4. 运行应用：`streamlit run ai.py`
+
+### 方式二：使用Docker运行
+
+#### 构建镜像
+
+**Linux/Mac用户：**
+```bash
+chmod +x build-docker.sh
+./build-docker.sh
+```
+
+**Windows用户：**
+```cmd
+build-docker.bat
+```
+
+#### 运行容器
+
+**使用Docker命令：**
+```bash
+docker run -p 8501:8501 -v $(pwd)/config.json:/app/config.json knowledge-search-app:latest
+```
+
+**使用Docker Compose（推荐）：**
+```bash
+docker-compose up
+```
+
+**后台运行：**
+```bash
+docker-compose up -d
+```
+
+#### 访问应用
+
+构建完成后，访问 http://localhost:8501 即可使用应用。
+
 ## 安装和配置
 
 ### 1. 安装依赖

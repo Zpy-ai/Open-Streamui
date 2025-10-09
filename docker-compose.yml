@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  knowledge-search-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # 挂载配置文件，方便修改配置而不需要重新构建镜像
+      - ./config.json:/app/config.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
